@@ -1,0 +1,453 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flyer Link Splitter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f5f6f3; --surface:#ffffff; --ink:#1c2826; --muted:#5d6b68; --line:#d8ddd9;
+  --accent:#0e6b62; --accent-ink:#ffffff; --accent-soft:#e3f1ee;
+  --warn:#9a5b00; --warn-soft:#fbf0dc; --err:#a3261c; --err-soft:#fbe6e3; --ok:#1f7a3a;
+  --drop:#eef1ed;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --bg:#141a19; --surface:#1c2422; --ink:#e6ecea; --muted:#9aa8a4; --line:#2f3a38;
+  --accent:#4fbfae; --accent-ink:#0c1a18; --accent-soft:#1e3532;
+  --warn:#e5a94a; --warn-soft:#33291a; --err:#f08a80; --err-soft:#3a2220; --ok:#6fcf8a; --drop:#19201f;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#141a19; --surface:#1c2422; --ink:#e6ecea; --muted:#9aa8a4; --line:#2f3a38;
+  --accent:#4fbfae; --accent-ink:#0c1a18; --accent-soft:#1e3532;
+  --warn:#e5a94a; --warn-soft:#33291a; --err:#f08a80; --err-soft:#3a2220; --ok:#6fcf8a; --drop:#19201f;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans);padding-inline:16px;padding-block:32px 48px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+h1{font-size:26px;font-weight:600;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.lede{margin:6px 0 0;color:var(--muted);max-width:62ch}
+.drop{border:1.5px dashed var(--line);background:var(--drop);border-radius:10px;padding:36px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;align-items:center;gap:8px}
+.drop:hover,.drop:focus-visible,.drop.over{border-color:var(--accent);background:var(--accent-soft);outline:none}
+.drop strong{font-size:17px;font-weight:600}
+.drop span{color:var(--muted);font-size:14px}
+.drop .btn{margin-top:6px}
+.btn{font:inherit;font-weight:500;font-size:14px;border-radius:7px;padding:8px 14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.status{font-size:14px;color:var(--muted);min-height:1.5em}
+.status.err{color:var(--err)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0;font-weight:600}
+.meta{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:14px}
+.meta b{font-weight:600;font-variant-numeric:tabular-nums}
+.meta .src{font-family:var(--mono);font-size:13px}
+.files{display:flex;flex-direction:column;gap:0}
+.file{display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.file:first-child{border-top:0;padding-top:0}
+.fname{font-family:var(--mono);font-size:13.5px;word-break:break-word}
+.fsub{grid-column:1;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.file .btn{grid-row:1 / span 2;grid-column:2}
+.file.example .fname{color:var(--muted)}
+.tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:1px 7px;border-radius:99px;background:var(--drop);color:var(--muted);margin-left:8px;vertical-align:1px;font-family:var(--sans)}
+.saved{color:var(--ok);font-size:13px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.warn{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:12px 14px;font-size:14px}
+.warn ul{margin:6px 0 0;padding-left:18px}
+.pick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+select{font:inherit;font-size:14px;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+details summary{cursor:pointer;font-size:14px;font-weight:500}
+.tablewrap{overflow-x:auto;margin-top:10px;border:1px solid var(--line);border-radius:8px;max-height:420px;overflow-y:auto}
+table{border-collapse:collapse;font-size:13px;width:100%}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;background:var(--surface);font-weight:600}
+td.nf{color:var(--err);font-weight:500}
+.rules{font-size:13.5px;color:var(--muted);margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+@media (max-width:520px){.file{grid-template-columns:1fr}.file .btn{grid-row:auto;grid-column:1;justify-self:start;margin-top:6px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+<main class="wrap">
+  <header>
+    <h1>Flyer Link Splitter</h1>
+    <p class="lede">Drop the monthly Flipp Flyer Template workbook. You get three values-only files, one per store: Harvest Wines, Rockhead and Westside.</p>
+  </header>
+
+  <label class="drop" id="drop" tabindex="0" for="file">
+    <strong>Drop the .xlsx here</strong>
+    <span>or choose it from your computer</span>
+    <span class="btn">Choose file</span>
+    <input type="file" id="file" accept=".xlsx,.xlsm" hidden>
+  </label>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+
+  <section class="panel" id="result">
+    <div class="actions" style="justify-content:space-between">
+      <h2 id="resultTitle">Output files</h2>
+      <button class="btn primary" id="saveAll" disabled>Download all 3</button>
+    </div>
+    <div class="meta" id="meta" hidden></div>
+    <div class="pick" id="pick" hidden>
+      <label for="sheetSel">Links sheet</label>
+      <select id="sheetSel"></select>
+    </div>
+    <div class="warn" id="warn" hidden></div>
+    <div class="files" id="files"></div>
+    <details id="previewBox" hidden>
+      <summary>Preview rows</summary>
+      <div class="pick" style="margin-top:10px">
+        <label for="storeSel">Store</label>
+        <select id="storeSel"></select>
+      </div>
+      <div class="tablewrap"><table id="preview"></table></div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <h2>What the tool does</h2>
+    <ul class="rules">
+      <li>Finds the Links sheet (for example <em>Links-October</em>) by its Page / SKU / store ID and Link headers. <em>Links-Template</em> is skipped.</li>
+      <li>Keeps every row that has a product, SKU, ID or a custom link. Empty slots and empty pages at the bottom are dropped.</li>
+      <li>Fills the page number down onto every row.</li>
+      <li>Writes values only, with no formulas. Links stay clickable.</li>
+      <li>Names each file after the one you drop, plus “ - Harvest Wines”, “ - Rockhead” or “ - Westside”.</li>
+      <li>Everything runs in your browser. The workbook is never uploaded.</li>
+    </ul>
+  </section>
+</main>
+<script>
+// Core split logic — shared by the page and the Node test.
+(function (root) {
+  const STORES = [
+    { key: 'harvest',  label: 'Harvest',  suffix: 'Harvest Wines', widthD: 8.88,  widthE: 45.63 },
+    { key: 'rockhead', label: 'RockHead', suffix: 'Rockhead',      widthD: 10.88, widthE: 38.75 },
+    { key: 'westside', label: 'WestSide', suffix: 'Westside',      widthD: 10.25, widthE: 50.88 },
+  ];
+
+  const norm = v => String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' ');
+  const isBlank = v => v == null || String(v).trim() === '';
+  const isNotFound = v => /^not found$/i.test(String(v == null ? '' : v).trim());
+
+  // Find the header row + column indexes in a sheet given as array-of-arrays.
+  function findLayout(aoa) {
+    for (let r = 0; r < Math.min(aoa.length, 25); r++) {
+      const row = aoa[r] || [];
+      const h = row.map(norm);
+      const find = t => h.findIndex(x => x === t);
+      const page = find('page');
+      const sku = find('sku');
+      if (page < 0 || sku < 0) continue;
+      const product = h.findIndex(x => x.startsWith('product'));
+      const stores = {};
+      let ok = true;
+      for (const s of STORES) {
+        const id = find(s.label.toLowerCase() + ' id');
+        const link = find(s.label.toLowerCase() + ' link');
+        if (id < 0 || link < 0) { ok = false; break; }
+        stores[s.key] = { id, link, idHeader: String(row[id]).trim(), linkHeader: String(row[link]).trim() };
+      }
+      if (!ok) continue;
+      return {
+        headerRow: r, page, product, sku, stores,
+        headers: { page: String(row[page]).trim(), product: product >= 0 ? String(row[product]).trim() : 'PRODUCT / BUTTON', sku: String(row[sku]).trim() },
+      };
+    }
+    return null;
+  }
+
+  // Base URLs sit in the row(s) above the header; an empty slot's link equals the base URL.
+  function baseUrls(aoa, layout) {
+    const out = {};
+    for (const s of STORES) {
+      let base = '';
+      for (let r = layout.headerRow - 1; r >= 0; r--) {
+        const v = (aoa[r] || [])[layout.stores[s.key].link];
+        if (!isBlank(v)) { base = String(v).trim(); break; }
+      }
+      out[s.key] = base;
+    }
+    return out;
+  }
+
+  function toNum(v) {
+    if (typeof v === 'number') return v;
+    const s = String(v).trim();
+    return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : s;
+  }
+
+  // aoa: array of arrays of *cached values* (no formulas). Returns rows per store + warnings.
+  function split(aoa, sheetName) {
+    const layout = findLayout(aoa);
+    if (!layout) return null;
+    const bases = baseUrls(aoa, layout);
+    const result = { sheetName, layout, stores: {}, pages: new Set(), itemCount: 0, warnings: [], emptyPagesDropped: new Set(), allPages: new Set(), missingCache: 0 };
+    for (const s of STORES) result.stores[s.key] = [];
+
+    let page = null;
+    for (let r = layout.headerRow + 1; r < aoa.length; r++) {
+      const row = aoa[r] || [];
+      if (!isBlank(row[layout.page])) { page = toNum(row[layout.page]); result.allPages.add(page); }
+      const product = layout.product >= 0 ? row[layout.product] : null;
+      const sku = row[layout.sku];
+      const anyId = STORES.some(s => !isBlank(row[layout.stores[s.key].id]));
+      const customLink = STORES.some(s => {
+        const l = row[layout.stores[s.key].link];
+        return !isBlank(l) && String(l).trim() !== bases[s.key];
+      });
+      if (isBlank(product) && isBlank(sku) && !anyId && !customLink) continue;
+
+      result.itemCount++;
+      result.pages.add(page);
+      const excelRow = r + 1;
+      if (isNotFound(product)) result.warnings.push({ row: excelRow, page, sku, store: 'All', msg: 'Product name not found' });
+      for (const s of STORES) {
+        const c = layout.stores[s.key];
+        const id = row[c.id];
+        let link = isBlank(row[c.link]) ? '' : String(row[c.link]).trim();
+        if (isNotFound(id)) result.warnings.push({ row: excelRow, page, sku, store: s.suffix, msg: 'ID not found' });
+        result.stores[s.key].push([
+          page,
+          isBlank(product) ? '' : String(product).trim(),
+          isBlank(sku) ? '' : toNum(sku),
+          isBlank(id) ? '' : toNum(id),
+          link,
+        ]);
+      }
+    }
+    for (const p of result.allPages) if (!result.pages.has(p)) result.emptyPagesDropped.add(p);
+    return result;
+  }
+
+  root.FlyerSplit = { STORES, findLayout, split };
+  if (typeof module !== 'undefined') module.exports = root.FlyerSplit;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+// Read (SheetJS) + write (ExcelJS) glue — shared by the page and the Node test.
+(function (root) {
+  function sheetToAoa(XLSX, ws) {
+    // Cached values only; count formulas that have no stored result.
+    let missing = 0;
+    for (const k in ws) {
+      if (k[0] === '!') continue;
+      const c = ws[k];
+      if (c && c.f && c.v === undefined) missing++;
+    }
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: true });
+    return { aoa, missing };
+  }
+
+  function analyze(XLSX, data) {
+    const FS = root.FlyerSplit;
+    const names = XLSX.read(data, { type: 'array', bookSheets: true }).SheetNames;
+    const byName = n => /link/i.test(n) && !/template/i.test(n);
+    let candidates = names.filter(byName);
+    const tryNames = candidates.length ? candidates : names.filter(n => !/template/i.test(n));
+    const wb = XLSX.read(data, { type: 'array', sheets: tryNames, cellFormula: true, cellHTML: false, cellText: false });
+    const results = [];
+    for (const n of tryNames) {
+      const ws = wb.Sheets[n];
+      if (!ws) continue;
+      const { aoa, missing } = sheetToAoa(XLSX, ws);
+      const res = FS.split(aoa, n);
+      if (res) { res.missingCache = missing; results.push(res); }
+    }
+    return { sheetNames: names, results };
+  }
+
+  async function buildWorkbook(ExcelJS, res, storeKey) {
+    const FS = root.FlyerSplit;
+    const s = FS.STORES.find(x => x.key === storeKey);
+    const c = res.layout.stores[storeKey];
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Sheet1');
+    ws.columns = [
+      { width: 4.88 }, { width: 37.63 }, { width: 7.5 }, { width: s.widthD }, { width: s.widthE },
+    ];
+    const font = { name: 'Arial', size: 10 };
+    const header = [res.layout.headers.page, res.layout.headers.product, res.layout.headers.sku, c.idHeader, c.linkHeader];
+    ws.addRow(header).eachCell(cell => { cell.font = font; });
+    for (const r of res.stores[storeKey]) {
+      const row = ws.addRow(r.slice(0, 4));
+      row.eachCell({ includeEmpty: true }, cell => { cell.font = font; });
+      const link = r[4];
+      const lc = row.getCell(5);
+      if (/^https?:\/\//i.test(link)) {
+        lc.value = { text: link, hyperlink: link };
+        lc.font = { ...font, color: { argb: 'FF0000FF' }, underline: true };
+      } else {
+        lc.value = link || null;
+        lc.font = font;
+      }
+    }
+    return wb.xlsx.writeBuffer();
+  }
+
+  function outName(inputName, storeKey) {
+    const FS = root.FlyerSplit;
+    const base = inputName.replace(/\.(xlsx|xlsm|xls)$/i, '');
+    return `${base} - ${FS.STORES.find(x => x.key === storeKey).suffix}.xlsx`;
+  }
+
+  root.FlyerIO = { analyze, buildWorkbook, outName };
+  if (typeof module !== 'undefined') module.exports = root.FlyerIO;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function(){
+  const $ = id => document.getElementById(id);
+  const FS = window.FlyerSplit, IO = window.FlyerIO;
+  let state = { name: 'Flipp Flyer Template.xlsx', analysis: null, idx: 0, bufs: {} };
+  let downloads = null;
+  const dlReady = (window.claude && window.claude.use) ? window.claude.use('downloads').then(d => { downloads = d; return d; }).catch(() => null) : Promise.resolve(null);
+
+  function loadScript(urls){
+    return new Promise((res, rej) => {
+      const next = i => {
+        if (i >= urls.length) return rej(new Error('load failed'));
+        const s = document.createElement('script');
+        s.src = urls[i]; s.onload = res; s.onerror = () => { s.remove(); next(i + 1); };
+        document.head.appendChild(s);
+      };
+      next(0);
+    });
+  }
+  const libs = Promise.all([
+    loadScript(['https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js']),
+    loadScript(['https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js','https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js']),
+  ]);
+
+  function status(msg, err){ const s = $('status'); s.textContent = msg || ''; s.classList.toggle('err', !!err); }
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  function renderExample(){
+    $('resultTitle').textContent = 'Output files';
+    $('files').innerHTML = FS.STORES.map(s => `
+      <div class="file example"><div class="fname">${esc(IO.outName(state.name, s.key))}<span class="tag">Example</span></div>
+      <div class="fsub">Drop a workbook to create this file</div>
+      <button class="btn" disabled>Download</button></div>`).join('');
+  }
+
+  function current(){ return state.analysis && state.analysis.results[state.idx]; }
+
+  async function buildAll(){
+    const res = current(); state.bufs = {};
+    for (const s of FS.STORES) state.bufs[s.key] = await IO.buildWorkbook(ExcelJS, res, s.key);
+  }
+
+  function render(){
+    const res = current();
+    const r = state.analysis.results;
+    $('resultTitle').textContent = 'Ready to download';
+    $('pick').hidden = r.length < 2;
+    if (r.length > 1) $('sheetSel').innerHTML = r.map((x,i) => `<option value="${i}"${i===state.idx?' selected':''}>${esc(x.sheetName)}</option>`).join('');
+    const pages = [...res.pages].filter(p => p != null);
+    const dropped = [...res.emptyPagesDropped];
+    $('meta').hidden = false;
+    $('meta').innerHTML = `<span>Source <span class="src">${esc(state.name)}</span> › <span class="src">${esc(res.sheetName)}</span></span>
+      <span><b>${res.itemCount}</b> items</span>
+      <span><b>${pages.length}</b> pages${pages.length ? ` (${pages[0]}–${pages[pages.length-1]})` : ''}</span>
+      ${dropped.length ? `<span>Empty pages removed: <b>${dropped.join(', ')}</b></span>` : ''}`;
+
+    const w = [];
+    if (res.missingCache) w.push(`<b>${res.missingCache} formula cells had no saved value.</b> Open the workbook in Excel, let it recalculate, save, and drop it again.`);
+    if (res.warnings.length) {
+      w.push(`<b>${res.warnings.length} lookup${res.warnings.length>1?'s':''} returned “Not found”.</b> These rows are still included, so check them before publishing:<ul>` +
+        res.warnings.slice(0, 12).map(x => `<li>Page ${esc(x.page)} · SKU ${esc(x.sku)} · ${esc(x.store)}: ${esc(x.msg)}</li>`).join('') +
+        (res.warnings.length > 12 ? `<li>…and ${res.warnings.length - 12} more</li>` : '') + '</ul>');
+    }
+    $('warn').hidden = !w.length; $('warn').innerHTML = w.join('<br>');
+
+    $('files').innerHTML = FS.STORES.map(s => `
+      <div class="file"><div class="fname">${esc(IO.outName(state.name, s.key))}</div>
+      <div class="fsub">${res.stores[s.key].length} rows · ${esc(res.layout.stores[s.key].idHeader)}, ${esc(res.layout.stores[s.key].linkHeader)} <span class="saved" id="saved-${s.key}"></span></div>
+      <button class="btn" data-store="${s.key}">Download</button></div>`).join('');
+    $('files').querySelectorAll('button[data-store]').forEach(b => b.addEventListener('click', () => save(b.dataset.store)));
+    $('saveAll').disabled = false;
+
+    $('previewBox').hidden = false;
+    $('storeSel').innerHTML = FS.STORES.map(s => `<option value="${s.key}">${esc(s.suffix)}</option>`).join('');
+    renderPreview();
+  }
+
+  function renderPreview(){
+    const res = current(); const k = $('storeSel').value || 'harvest';
+    const c = res.layout.stores[k];
+    const head = [res.layout.headers.page, res.layout.headers.product, res.layout.headers.sku, c.idHeader, c.linkHeader];
+    const nf = v => /^not found$/i.test(String(v).trim());
+    $('preview').innerHTML = '<thead><tr>' + head.map(h => `<th>${esc(h)}</th>`).join('') + '</tr></thead><tbody>' +
+      res.stores[k].map(r => '<tr>' + r.map(v => `<td${nf(v)?' class="nf"':''}>${esc(v)}</td>`).join('') + '</tr>').join('') + '</tbody>';
+  }
+
+  async function save(key){
+    await dlReady;
+    const blob = new Blob([state.bufs[key]], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    if (!downloads) {
+      // Standalone hosting (e.g. GitHub Pages): plain browser download.
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = IO.outName(state.name, key);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      const el = $('saved-' + key); if (el) el.textContent = '· Saved';
+      await new Promise(r => setTimeout(r, 400));
+      return true;
+    }
+    try {
+      await downloads.save({ filename: IO.outName(state.name, key), data: blob });
+      const el = $('saved-' + key); if (el) el.textContent = '· Saved';
+      return true;
+    } catch (e) {
+      if (e && e.code === 'declined') { status('Download cancelled.'); return false; }
+      if (e && e.code === 'rate_limited') { status('Finish the open download prompt first, then try again.', true); return false; }
+      status('Could not save the file' + (e && e.message ? ': ' + e.message : '.'), true); return false;
+    }
+  }
+
+  $('saveAll').addEventListener('click', async () => {
+    $('saveAll').disabled = true;
+    for (const s of FS.STORES) { if (!(await save(s.key))) break; }
+    $('saveAll').disabled = false;
+  });
+
+  $('sheetSel').addEventListener('change', async e => { state.idx = +e.target.value; await buildAll(); render(); });
+  $('storeSel').addEventListener('change', renderPreview);
+
+  async function handle(file){
+    if (!file) return;
+    if (!/\.(xlsx|xlsm)$/i.test(file.name)) { status('That file is not an .xlsx workbook. Save it as .xlsx and try again.', true); return; }
+    status('Reading ' + file.name + '…');
+    try {
+      await libs;
+    } catch { status('The spreadsheet library could not load. Check your connection and reload the page.', true); return; }
+    try {
+      const data = new Uint8Array(await file.arrayBuffer());
+      await new Promise(r => setTimeout(r, 30));
+      const analysis = IO.analyze(XLSX, data);
+      if (!analysis.results.length) {
+        status('No Links sheet found. The tool looks for a sheet with Page, SKU, Harvest ID/Link, RockHead ID/Link and WestSide ID/Link headers.', true);
+        return;
+      }
+      state = { name: file.name, analysis, idx: 0, bufs: {} };
+      await buildAll();
+      render();
+      status('Done. ' + analysis.results[0].itemCount + ' items split into 3 files.');
+    } catch (e) {
+      console.error(e); status('Could not read that workbook: ' + (e.message || e), true);
+    }
+  }
+
+  const drop = $('drop');
+  $('file').addEventListener('change', e => { handle(e.target.files[0]); e.target.value = ''; });
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } });
+  ['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => handle(e.dataTransfer.files[0]));
+  // Allow dropping anywhere on the page
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => { e.preventDefault(); if (!drop.contains(e.target)) handle(e.dataTransfer.files[0]); });
+
+  renderExample();
+})();
+</script></body></html>
